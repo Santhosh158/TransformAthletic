@@ -1,0 +1,16 @@
+{
+  "name": "30-Day Athletic Transformation",
+  "short_name": "Transform30",
+  "description": "Evidence-based 30-day athletic transformation roadmap with daily workouts, meals, and progress tracking",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#064e3b",
+  "background_color": "#030712",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

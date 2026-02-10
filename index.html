@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>30-Day Athletic Transformation</title>
+
+<!-- PWA Meta -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Transform30">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#064e3b">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- React -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<style>
+  * { -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'DM Sans', system-ui, sans-serif; margin: 0; background: #030712; overscroll-behavior: none; }
+  ::-webkit-scrollbar { display: none; }
+  .safe-top { padding-top: env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 16px); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useCallback, useEffect } = React;
+
+// ─── PERSISTENCE ────────────────────────────────────────────────────────────────
+function load(key, fallback) { try { const v = localStorage.getItem("t30_"+key); return v ? JSON.parse(v) : fallback; } catch { return fallback; } }
+function save(key, val) { try { localStorage.setItem("t30_"+key, JSON.stringify(val)); } catch {} }
+
+// ─── WEEK-SPECIFIC WORKOUTS ─────────────────────────────────────────────────────
+const WK_NOTES = [
+  "Break-In Phase: Light weights, RPE 6-7 (3-4 reps in reserve). Focus on form. Tendons adapt 1-2 months slower than muscles (Kubo et al., 2010).",
+  "Break-In Continued: Increase weight 5-10%. Jog intervals → 45 sec (was 30s). Plank holds +5 sec. Sleep push toward 7 hrs.",
+  "Progressive Overload: Transition to barbells. Add 1 set to key lifts. Running → 1.5 min jog / 1 min walk. Start tracking macros in MyFitnessPal.",
+  "Test Week: Push for personal bests. Attempt 2 km continuous jog. Take full comparison photos. Evaluate ALL metrics vs Day 1.",
+];
+
+const WK_WORKOUTS = {
+  0: {
+    0: { t: "Upper Body Push + Posture", ex: [
+      { n:"Warm-Up: Cat-Cow",s:"2×8",c:"Slow spinal movement",g:"warm" },
+      { n:"Warm-Up: Band Pull-Apart",s:"2×15",c:"Activate rear delts",g:"warm" },
+      { n:"Warm-Up: Arm Circles",s:"10 each dir",c:"Shoulder joint prep",g:"warm" },
+      { n:"DB Bench Press",s:"3×10-12",c:"Light weight, feel stretch at bottom",g:"main" },
+      { n:"DB Overhead Press (seated)",s:"3×10-12",c:"Core tight, no arching",g:"main" },
+      { n:"Incline DB Press",s:"2×12",c:"30° incline, full range",g:"main" },
+      { n:"Cable Face Pull ⭐",s:"3×15",c:"KEY POSTURE — elbows high, rotate out",g:"posture" },
+      { n:"DB Lateral Raise",s:"2×15",c:"Light, control the negative",g:"main" },
+      { n:"Tricep Rope Pushdown",s:"2×15",c:"Squeeze at bottom",g:"main" },
+      { n:"Dead Hang",s:"2×20s",c:"Decompress spine",g:"cool" },
+      { n:"Cooldown: Pec Stretch",s:"2×30s/side",c:"Open chest",g:"cool" },
+      { n:"Cooldown: Hip Flexor Stretch",s:"2×30s/side",c:"Squeeze glute",g:"cool" },
+    ]},
+    1: { t: "Lower Body + Core (APT Focus)", ex: [
+      { n:"Warm-Up: Glute Bridge",s:"2×12",c:"3 sec squeeze at top",g:"warm" },
+      { n:"Warm-Up: World's Greatest Stretch",s:"5/side",c:"Hip flexor + thoracic",g:"warm" },
+      { n:"Goblet Squat",s:"3×12",c:"DB at chest, deep as mobility allows",g:"main" },
+      { n:"Romanian Deadlift (DB)",s:"3×12",c:"Hinge at hips, feel hamstrings",g:"main" },
+      { n:"Hip Thrust (BW/light DB) ⭐",s:"3×15",c:"APT CORRECTOR — glutes HARD, posterior tilt",g:"posture" },
+      { n:"Bulgarian Split Squat",s:"2×10/leg",c:"Rear foot on bench",g:"main" },
+      { n:"Dead Bug ⭐",s:"3×10/side",c:"Lower back pressed into floor",g:"posture" },
+      { n:"Plank (Posterior Tilt)",s:"3×30s",c:"Tuck pelvis, squeeze glutes",g:"main" },
+      { n:"Pallof Press",s:"2×10/side",c:"Anti-rotation core",g:"main" },
+      { n:"Cooldown: Figure-4 Stretch",s:"2×30s/side",c:"Glute release",g:"cool" },
+    ]},
+    2: { t: "Cardio + Mobility + Posture Reset", ex: [
+      { n:"Walk/Run Intervals",s:"20 min",c:"Walk 2m/jog 30s ×8",g:"cardio" },
+      { n:"Row/Cycle (Zone 2)",s:"10 min",c:"~120-130 bpm",g:"cardio" },
+      { n:"── POSTURE RESET (12 min) ──",s:"",c:"Full routine below",g:"header" },
+      { n:"Hip Flexor Stretch",s:"45s/side",c:"Squeeze glute, push forward",g:"posture" },
+      { n:"Glute Bridge Hold",s:"12 reps",c:"5-sec squeeze each",g:"posture" },
+      { n:"Dead Bug",s:"10/side",c:"Lower back glued to floor",g:"posture" },
+      { n:"Cat-Cow",s:"10 reps",c:"Exaggerate each",g:"posture" },
+      { n:"Thoracic Rotation",s:"8/side",c:"Side-lying, arm open",g:"posture" },
+      { n:"Wall Angel",s:"10 reps",c:"All flat on wall",g:"posture" },
+      { n:"Chin Tuck",s:"10×5s hold",c:"Double chin motion",g:"posture" },
+      { n:"Pec Doorway Stretch",s:"30s/side",c:"Forearm on frame",g:"posture" },
+    ]},
+    3: { t: "Upper Body Pull + Posture", ex: [
+      { n:"Warm-Up: Cat-Cow + Pull-Apart",s:"2×8+2×15",c:"",g:"warm" },
+      { n:"Lat Pulldown / Pull-Up",s:"3×10-12",c:"Full stretch, squeeze lats",g:"main" },
+      { n:"Seated Cable Row",s:"3×12",c:"Squeeze blades, 2-sec hold",g:"main" },
+      { n:"DB Row (Single Arm)",s:"3×10/arm",c:"Elbow drives back",g:"main" },
+      { n:"Face Pull + Ext. Rotation ⭐",s:"3×15",c:"POSTURE — slow & controlled",g:"posture" },
+      { n:"Band Pull-Apart",s:"2×20",c:"Scapular retraction",g:"main" },
+      { n:"DB Bicep Curl",s:"2×12",c:"No swinging",g:"main" },
+      { n:"Farmer's Carry",s:"3×30m",c:"Tall, shoulders back, core braced",g:"main" },
+      { n:"Cooldown: Child's Pose",s:"45s",c:"Back decompression",g:"cool" },
+    ]},
+    4: { t: "Full Body Athletic + Conditioning", ex: [
+      { n:"Warm-Up: WGS + Squats",s:"5/side+1×10",c:"",g:"warm" },
+      { n:"DB Thruster",s:"3×10",c:"Squat + press in one",g:"main" },
+      { n:"KB/DB Swing",s:"3×12",c:"Hip hinge, glute squeeze",g:"main" },
+      { n:"Push-Ups",s:"3×max",c:"Chest to floor",g:"main" },
+      { n:"Walking Lunges",s:"3×10/leg",c:"Upright torso",g:"main" },
+      { n:"Cable/TRX Row",s:"3×12",c:"Upper back endurance",g:"main" },
+      { n:"Mountain Climbers",s:"3×20s",c:"Core tight",g:"main" },
+      { n:"AMRAP FINISHER 🔥",s:"5 min",c:"5 burpees + 10 jump squats + 10 push-ups. RECORD ROUNDS!",g:"finisher" },
+      { n:"Cooldown: Full Stretch",s:"5 min",c:"All major groups",g:"cool" },
+    ]},
+    5: { t: "Active Recovery", ex: [
+      { n:"Brisk Walk",s:"30-45 min",c:"7,000+ steps",g:"cardio" },
+      { n:"Posture Reset",s:"12 min",c:"Full routine",g:"posture" },
+      { n:"Light Yoga/Stretching",s:"15-20 min",c:"Optional",g:"cool" },
+      { n:"Foam Rolling",s:"5-10 min",c:"Upper back, quads, glutes",g:"cool" },
+    ]},
+    6: { t: "Full Rest + Weekly Review", ex: [
+      { n:"FULL REST",s:"—",c:"Recovery = growth",g:"rest" },
+      { n:"Posture Reset ONLY",s:"12 min",c:"Only exercise today",g:"posture" },
+      { n:"Weekly Check-In",s:"10 min",c:"Weigh in, photos, review",g:"review" },
+      { n:"Meal Prep",s:"45 min",c:"Cook chicken, rice, chop veg",g:"review" },
+    ]},
+  },
+  2: {
+    0: { t: "Upper Push (PROGRESSED)", badge:"🔺 BARBELL", ex: [
+      { n:"Warm-Up: Cat-Cow + Pull-Apart",s:"2×8+2×15",c:"",g:"warm" },
+      { n:"Barbell Bench Press",s:"4×8-10",c:"Add 2.5-5 kg from Wk2",g:"main" },
+      { n:"DB Overhead Press",s:"3×10-12",c:"Increase weight",g:"main" },
+      { n:"Incline DB Press",s:"3×10-12",c:"+1 set vs Wk1-2",g:"main" },
+      { n:"Cable Face Pull ⭐",s:"4×15",c:"+1 set, posture priority",g:"posture" },
+      { n:"DB Lateral Raise",s:"3×12-15",c:"Add weight if easy",g:"main" },
+      { n:"Overhead Tricep Extension",s:"3×12",c:"Replaces pushdown",g:"main" },
+      { n:"Dead Hang",s:"3×30s",c:"From 20s",g:"cool" },
+    ]},
+    1: { t: "Lower Body (PROGRESSED)", badge:"🔺 BARBELL", ex: [
+      { n:"Warm-Up: Bridges + WGS",s:"2×12+5/side",c:"",g:"warm" },
+      { n:"Barbell Back Squat",s:"4×8-10",c:"From goblet. Depth priority.",g:"main" },
+      { n:"Barbell RDL",s:"4×10-12",c:"From DB. Hinge pattern.",g:"main" },
+      { n:"Barbell Hip Thrust ⭐",s:"4×12",c:"Glute activation king",g:"posture" },
+      { n:"Bulgarian Split Squat (DB)",s:"3×10/leg",c:"Add dumbbells",g:"main" },
+      { n:"Dead Bug (Weighted) ⭐",s:"3×10/side",c:"Hold plate overhead",g:"posture" },
+      { n:"RKC Plank",s:"3×30-40s",c:"Max tension, posterior tilt",g:"main" },
+      { n:"Pallof Press",s:"3×12/side",c:"Increase weight",g:"main" },
+    ]},
+    2: { t: "Cardio + Mobility (PROGRESSED)", badge:"🔺 RUNNING", ex: [
+      { n:"Walk/Run Intervals",s:"25 min",c:"Walk 1m/jog 1.5m. 15+ min jogging",g:"cardio" },
+      { n:"Row/Cycle (Zone 2)",s:"12 min",c:"+2 min from Wk2",g:"cardio" },
+      { n:"── POSTURE RESET (12 min) ──",s:"",c:"Same routine",g:"header" },
+      { n:"Pigeon Pose",s:"45s/side",c:"Deep hip opener (added Wk3)",g:"posture" },
+    ]},
+  },
+  3: {
+    2: { t: "Cardio TEST: 2 km Jog", badge:"🏆 TEST", ex: [
+      { n:"Continuous Jog",s:"2 km / 15 min",c:"Start slow. Walk 30s max if needed. RECORD DISTANCE.",g:"cardio" },
+      { n:"Easy Cooldown",s:"10 min",c:"Zone 2 recovery",g:"cardio" },
+      { n:"── POSTURE RESET ──",s:"",c:"Same routine",g:"header" },
+    ]},
+  },
+};
+
+function getWorkout(day) {
+  const wk = Math.ceil(day / 7) - 1;
+  const dow = (day - 1) % 7;
+  if (wk >= 2 && WK_WORKOUTS[wk]?.[dow]) return WK_WORKOUTS[wk][dow];
+  if (wk >= 2 && WK_WORKOUTS[2]?.[dow]) return WK_WORKOUTS[2][dow];
+  const base = WK_WORKOUTS[0][dow];
+  if (wk === 1) return { ...base, t: base.t + " (+5-10% weight)", badge:"📈" };
+  return base;
+}
+
+// ─── MEALS ──────────────────────────────────────────────────────────────────────
+const MEALS = [
+  {day:"Mon",meals:[{t:"7:30",n:"Scrambled Eggs+Toast",i:"3 eggs+2 whites, spinach, 2 toast, ½ avocado",m:"P:40 C:38 F:24 · 530",r:"Whisk eggs, cook med heat+olive oil, add spinach. Toast. Slice avo."},{t:"12:30",n:"Chicken Rice Bowl",i:"200g chicken, 1.5c rice, 150g broccoli, olive oil",m:"P:48 C:72 F:10 · 570",r:"Season chicken: salt, pepper, garlic. Grill 6-7min/side. Over rice+broccoli."},{t:"5:30",n:"Banana + Whey",i:"1 banana, 1 scoop whey",m:"P:27 C:30 F:2 · 250",r:"Eat banana, drink shake."},{t:"8:00",n:"Baked Salmon+Sweet Potato",i:"200g salmon, sweet potato, salad, green beans",m:"P:42 C:52 F:18 · 540",r:"Bake salmon 200°C 12-15min. Bake sweet potato 45min. Steam beans."},{t:"9:30",n:"Greek Yogurt+Walnuts",i:"200g yogurt, 1tbsp honey, 15g walnuts",m:"P:22 C:22 F:10 · 270",r:"Combine."}],total:"P:179 · C:214 · F:64 · 2,160 kcal"},
+  {day:"Tue",meals:[{t:"7:30",n:"Overnight Oats",i:"80g oats, whey, 200ml milk, 1tbsp PB, ½ banana",m:"P:38 C:60 F:16 · 540",r:"Mix in jar night before. Top banana AM."},{t:"12:30",n:"Chicken Stir-Fry",i:"200g thigh, peppers, onions, mushrooms, 1.5c rice, soy, sesame",m:"P:44 C:76 F:16 · 630",r:"Stir-fry chicken high heat 5-6m. Add veg 3-4m. Soy+sesame. Over rice."},{t:"5:30",n:"PB Toast",i:"2 slices WW bread, 2tbsp PB",m:"P:14 C:34 F:16 · 340",r:"Toast, spread."},{t:"8:00",n:"Lean Beef Pasta",i:"180g beef, 100g WW pasta, passata, garlic, salad",m:"P:48 C:68 F:14 · 600",r:"Brown beef+garlic, add passata, simmer 10m. Cook pasta. Combine."},{t:"9:30",n:"Protein Shake+PB",i:"1 scoop whey, 200ml milk, 1tbsp PB",m:"P:32 C:16 F:12 · 300",r:"Blend."}],total:"P:176 · C:254 · F:74 · 2,410 kcal"},
+  {day:"Wed",meals:[{t:"7:30",n:"Veggie Omelette",i:"3 eggs+1 white, spinach, tomato, 30g feta, 1 toast",m:"P:32 C:18 F:20 · 380",r:"Whisk, pour in oiled pan, add veg, fold, top feta."},{t:"12:30",n:"Tuna Rice Bowl",i:"150g tuna, 1.5c rice, cucumber, corn, mayo, sriracha",m:"P:42 C:70 F:8 · 520",r:"Drain tuna. Build bowl."},{t:"5:00",n:"Apple+Almonds",i:"1 apple, 15 almonds",m:"P:5 C:28 F:10 · 220",r:"Eat."},{t:"8:00",n:"Chicken Salad+Pita",i:"200g chicken, salad, 100g chickpeas, olive oil, 1 pita",m:"P:50 C:40 F:14 · 490",r:"Grill chicken, slice over greens+chickpeas. Dress."},{t:"9:30",n:"Cottage Cheese+Berries",i:"200g cottage cheese, 100g berries",m:"P:24 C:16 F:6 · 210",r:"Combine."}],total:"P:153 · C:172 · F:58 · 1,820 kcal"},
+  {day:"Thu",meals:[{t:"7:30",n:"Scrambled Eggs+Toast",i:"3 eggs+2 whites, 2 toast, ½ avocado",m:"P:40 C:38 F:24 · 530",r:"Same as Monday."},{t:"12:30",n:"Soy-Ginger Chicken+Rice",i:"200g chicken, soy-ginger, 1.5c rice, zucchini, carrots",m:"P:48 C:74 F:10 · 580",r:"Marinate 30m. Pan-sear. Sauté veg."},{t:"5:30",n:"Banana+Whey",i:"1 banana, 1 scoop whey",m:"P:27 C:30 F:2 · 250",r:"Eat+drink."},{t:"8:00",n:"Turkey Meatballs+Rice",i:"200g turkey, egg, breadcrumbs, tomato sauce, rice, spinach",m:"P:46 C:62 F:12 · 550",r:"Mix, form balls, bake 200°C 18m. In sauce. With rice."},{t:"9:30",n:"Yogurt+Honey+Walnuts",i:"200g yogurt, honey, 15g walnuts",m:"P:22 C:22 F:10 · 270",r:"Combine."}],total:"P:183 · C:226 · F:58 · 2,180 kcal"},
+  {day:"Fri",meals:[{t:"7:30",n:"Overnight Oats",i:"80g oats, whey, milk, 1tbsp PB, berries",m:"P:38 C:58 F:16 · 530",r:"Prep night before."},{t:"12:30",n:"Beef Stir-Fry",i:"180g beef, peppers, snap peas, 1.5c rice, teriyaki",m:"P:40 C:78 F:14 · 600",r:"Sear beef 3-4m. Add veg. Teriyaki. Over rice."},{t:"5:30",n:"PB Banana Toast",i:"1 toast, 1tbsp PB, ½ banana",m:"P:8 C:32 F:9 · 240",r:"Toast, spread, top."},{t:"8:00",n:"Baked Cod+Potato",i:"200g cod, baby potatoes, asparagus, lemon-herb",m:"P:42 C:42 F:8 · 410",r:"Bake cod 200°C 12m. Roast potatoes 25m. Steam asparagus."},{t:"9:30",n:"Protein+PB Shake",i:"1 scoop whey, 200ml milk, 1tbsp PB",m:"P:32 C:16 F:12 · 300",r:"Blend."}],total:"P:160 · C:226 · F:59 · 2,080 kcal"},
+  {day:"Sat",meals:[{t:"9:00",n:"Protein Pancakes",i:"Banana, 2 eggs, whey, 30g oats, blueberries",m:"P:36 C:50 F:14 · 470",r:"Blend all. Cook small pancakes. Top berries."},{t:"1:00",n:"Chicken Wrap",i:"200g chicken, tortilla, lettuce, tomato, cheese",m:"P:48 C:36 F:14 · 460",r:"Grill, slice, load, wrap."},{t:"—",n:"Recovery day",i:"—",m:"—",r:""},{t:"7:00",n:"Shrimp+Quinoa",i:"200g shrimp, 1c quinoa, roasted veg",m:"P:44 C:48 F:10 · 460",r:"Paprika+garlic shrimp. Grill 2-3m/side."},{t:"9:00",n:"Cottage Cheese+Berries",i:"200g cottage cheese, berries",m:"P:24 C:16 F:6 · 210",r:"Combine."}],total:"P:152 · C:150 · F:44 · 1,600 kcal"},
+  {day:"Sun",meals:[{t:"9:00",n:"Eggs+Avo Toast",i:"2 fried eggs, sourdough, ½ avocado, cherry tomatoes",m:"P:20 C:28 F:22 · 390",r:"Fry eggs. Mash avo on toast."},{t:"1:00",n:"Leftover Bowl",i:"Leftover protein + rice + veg",m:"P:40 C:60 F:12 · ~510",r:"Reheat leftovers."},{t:"—",n:"Rest day",i:"—",m:"—",r:""},{t:"7:00",n:"Dal+Rice",i:"Red lentils, rice, ghee, cumin, turmeric, yogurt",m:"P:22 C:80 F:8 · 490",r:"Sauté cumin+garlic in ghee. Add tomato+turmeric+lentils+water. Simmer 20m."},{t:"9:00",n:"Whey+Almonds",i:"1 scoop whey, 20 almonds",m:"P:30 C:8 F:14 · 280",r:"Shake+eat."}],total:"P:112 · C:176 · F:56 · 1,670 kcal"},
+];
+
+const CHECKLIST = ["Hit 146g+ protein","Drank 3L+ water","Completed workout","12-min posture reset","In bed for 7+ hrs","No alcohol today","Desk breaks every 45-60m","Posture check ×3","Took 5g creatine"];
+
+const POSTURE = [
+  {e:"Half-Kneeling Hip Flexor Stretch",d:"45s/side",c:"Squeeze glute, push forward (psoas focus — Reinold)"},
+  {e:"Glute Bridge 5-sec Hold",d:"12 reps",c:"Squeeze HARD — #1 APT corrector (Ludwig 2024 EMG)"},
+  {e:"Dead Bug (Slow)",d:"10/side",c:"Lower back into floor — teaches posterior tilt"},
+  {e:"Cat-Cow",d:"10 reps",c:"Exaggerate pelvic tilt each direction"},
+  {e:"Thoracic Rotation",d:"8/side",c:"Side-lying, knees bent, rotate arm open"},
+  {e:"Wall Angel",d:"10 reps",c:"Back+head+arms flat — scapular activation"},
+  {e:"Chin Tuck",d:"10×5s",c:"Double chin — activates deep cervical flexors"},
+  {e:"Child's Pose Reach",d:"30s/side",c:"Lateral thoracic stretch"},
+  {e:"Pec Doorway Stretch",d:"30s/side",c:"Forearm on frame, step through"},
+  {e:"Standing Reset",d:"30s",c:"Stack: ears→shoulders→hips→ankles"},
+];
+
+const MILESTONES = {
+  7:{t:"Week 1 ✓",items:["5 sessions done","146g+ protein 5+ days","Posture reset daily","Start weight+photos","7+ hrs sleep 3+ nights","3L+ water daily","Alcohol ≤2 occasions","AMRAP score logged"]},
+  14:{t:"Week 2 ✓",items:["Habits maintained","Less soreness","Glutes activating","Running easier","Catching slouching","Sleep → 6.5+ hrs","Alcohol ≤2/week","Weight ±0.5 kg"]},
+  21:{t:"Week 3 ✓",items:["Using barbells","Weights increasing","Jog 1.5-2 min intervals","Posture more natural","Clothes fitting different","More energy","Tracking macros","Day 21 photos"]},
+  30:{t:"🏆 MONTH 1",items:["Lifts up 15-30%","Jog 1.5-2 km","Posture improved in photos","Fuller shoulders, tighter mid","AMRAP +1-2 rounds","Sleep 7+ hrs","Protein consistent","Training = routine","Alcohol ≤2/week","Composition changing"]},
+};
+
+const SCIENCE = {
+  recomp:[{t:"Detrained Advantage",f:"Ideal for simultaneous muscle gain + fat loss.",s:"Barakat et al., 2020"},{t:"Caloric Sweet Spot",f:"Deficits >500 kcal blunt gains. Eat at or slightly above maintenance (~2,200-2,400 kcal).",s:"Murphy & Koehler, 2021 (59 studies)"},{t:"Protein Threshold",f:"1.6-2.2 g/kg/day. Target: 146-160g across 4 meals of 35-40g, 3-4 hrs apart.",s:"Morton et al., BJSM, 2018 (49 studies, 1,863 participants)"},{t:"Anabolic Window = Myth",f:"Negligible benefit when pre-exercise meal within 2-4 hrs. Just eat within 2-3 hrs of training.",s:"Aragon & Schoenfeld, JISSN, 2013"},{t:"Muscle Memory",f:"5 weeks retraining recovered previous size after 10 weeks off.",s:"Halonen et al., 2024"}],
+  posture:[{t:"APT Root Cause",f:"Lower Crossed Syndrome: tight hip flexors + weak glutes/abs from 10+ hrs sitting.",s:"Janda Framework"},{t:"Glute = #1 Corrector",f:"EMG confirmed gluteus maximus is most important muscle for pelvic correction.",s:"Ludwig et al., 2024"},{t:"4-8 Week Timeline",f:"Wks 1-2: awareness. Wks 5-6: strength. Wks 7-8: measurable angle changes.",s:"Piri et al., 2024"},{t:"Rounded Shoulders",f:"8 weeks 3×/week → significant improvement maintained after 4 weeks detraining.",s:"Seidi et al., Scientific Reports, 2020"},{t:"Face Pulls After Every Session",f:"Targets rear delts, rhomboids, lower traps, external rotators simultaneously.",s:"Cavaliere (MSPT) / NASM"}],
+  training:[{t:"2×/Week Per Muscle",f:"Superior to 1×/week. 3× offers no extra benefit when volume matched.",s:"Schoenfeld, Sports Medicine, 2016"},{t:"Tendon Lag",f:"Tendons adapt 1-2 months slower than muscle. Why Wks 1-2 are lighter.",s:"Kubo et al., 2010"},{t:"Volume Landmarks",f:"Start 10-12 sets/muscle/week. Add 1-2 sets/week. MEV:8-10, MAV:12-20. Deload every 4-5 weeks.",s:"Dr. Mike Israetel, RP"},{t:"RPE System",f:"Wk 1-2: RPE 6-7 (3-4 RIR). Wk 3-4: RPE 8-9 (1-2 RIR). Never to failure on compounds.",s:"Eric Helms"}],
+  cardio:[{t:"Interference = Overblown",f:"43 studies: no meaningful reduction in strength or hypertrophy from concurrent training.",s:"Schumann et al., Sports Med, 2022"},{t:"Zone 2 = Safe",f:"Conversational pace (~114-133 bpm). Different physiological lane from hypertrophy.",s:"Galpin / Attia / San Millán"},{t:"Cycling > Running",f:"Less eccentric damage. Keep cardio ≤30m. Separate from lifting 6+ hrs. Lift first.",s:"Wilson et al., 2012"},{t:"C25K: 27% Finish Rate",f:"Modified 16-week version far safer with concurrent lifting.",s:"Relph et al., 2023"}],
+  alcohol:[{t:"MPS Down 24-37%",f:"Even with optimal protein. mTOR drops 54-76%.",s:"Parr et al., PLoS ONE, 2014"},{t:"Muscle Cell Death",f:"Triggers intramyocellular apoptosis post-exercise. Increases T→E conversion.",s:"Smiles & Parr, 2016"},{t:"Sleep Destruction",f:"Even ≤2 drinks disrupt REM. Higher doses delay REM onset 30+ min.",s:"Gardiner et al., Sleep Med Reviews, 2025 (27 studies)"}],
+  sleep:[{t:"MPS -18%, Testosterone -24%",f:"Even with optimal protein. Moving 5-6→7+ hrs is the single biggest lever.",s:"Saner et al., 2021"},{t:"1 Week Bad Sleep = 10-15 Yrs Aging",f:"5-hour restriction → testosterone down 10-15%. GH (75% during deep sleep) curtailed.",s:"Leproult & Van Cauter, JAMA, 2011"}],
+  habits:[{t:"66 Days Average",f:"Range 18-254. Missing one day doesn't derail formation.",s:"Lally, UCL, 2010"},{t:"Identity-Based",f:"\"I am someone who trains.\" Every workout = vote for that identity. Never miss twice.",s:"James Clear, Atomic Habits"},{t:"Expectation Gap",f:"Visible definition: weeks 8-12. But strength up 20-50% in first 4-8 weeks.",s:"Adherence psychology literature"}],
+};
+
+const SLEEP_PROTOCOL = [
+  {s:"Sunlight within 30-60 min of waking",w:"Sets circadian clock"},
+  {s:"Delay caffeine 90-120 min after waking",w:"Prevents adenosine rebound"},
+  {s:"No caffeine after 1 PM",w:"Half-life ~5-6 hrs"},
+  {s:"Dim lights after sunset",w:"Preserves melatonin"},
+  {s:"No screens 30-60 min before bed",w:"Blue light + stimulation"},
+  {s:"Bedroom 18°C (65°F)",w:"Core temp drop = sleep trigger"},
+  {s:"Warm shower 1-2 hrs before bed",w:"Paradoxical cooling effect"},
+  {s:"Consistent times ±30 min",w:"Including weekends"},
+  {s:"Shift bedtime earlier by 15 min / 3-4 days",w:"Gradual 5-6→7-8 hrs"},
+];
+
+const ALCOHOL_PLAN = [
+  {p:"Month 1",t:"≤2 drinks, 2 occasions/wk",r:"Never within 6 hrs post-training. Stop 4+ hrs before bed. Always eat protein if drinking."},
+  {p:"Month 2",t:"≤1 drink, 1 occasion/wk",r:"Track sleep quality on zero-alcohol nights."},
+  {p:"Month 3+",t:"0-1 drinks/wk",r:"Huberman line: ≤2/wk. Should feel natural by now."},
+];
+
+const DESK = [
+  {a:"Monitor",t:"Arm's length. Top at/below eye level."},
+  {a:"Chair",t:"Feet flat, knees 90°. Recline 100-110°. Lumbar support."},
+  {a:"Breaks",t:"Every 30-45m: stand, walk 2-5m. Hip flexor stretch. Chin tucks at desk."},
+  {a:"Phone",t:"Hold at eye level. 60° down = 27 kg on cervical spine (Hansraj, 2014)."},
+];
+
+const TRACKING = [
+  {m:"Daily Weight → Weekly Avg",d:"Morning after bathroom. Only compare 7-day averages. 1-2 kg daily fluctuation is normal."},
+  {m:"Photos Every 2-4 Weeks",d:"Same lighting, time, poses (front, side, back). Most honest metric."},
+  {m:"Tape Monthly",d:"Chest, waist, hips, arm (flexed), thigh. Same side, same conditions."},
+  {m:"Strength Log",d:"Track bench, squat, DL, hip thrust, OHP. Expect 15-30% increase by Day 30."},
+  {m:"AMRAP Score",d:"Friday finisher. Compare Wk1 vs Wk4. Expect +1-2 rounds."},
+];
+
+const BODY_COMP = [
+  {w:"Day 30",e:"~73-74 kg. Subtle photo changes. Fuller shoulders. Strength up 15-30%."},
+  {w:"Month 3",e:"~74-75 kg at ~16-17% BF. V-taper emerging. Running 3-5 km."},
+  {w:"Month 6",e:"~75 kg at ~14-16% BF. +5-7 kg muscle, -3-5 kg fat. Visible definition."},
+  {w:"Month 12",e:"~77-80 kg at 12-15% BF. +8-12 kg muscle. Transformed physique."},
+];
+
+const C25K = [
+  {w:"Wk 1-4",r:"Walk 2m / Jog 30s → Walk 90s / Jog 2m",n:"Build connective tissue. 1 run/week."},
+  {w:"Wk 5-8",r:"Walk 1m / Jog 3-5m → Jog 8m",n:"Conversational pace (Zone 2)."},
+  {w:"Wk 9-12",r:"Build to 20-25 min continuous",n:"Walk breaks only if needed."},
+  {w:"Wk 13-16",r:"30 min continuous (~5K)",n:"Far safer than standard 9-wk C25K."},
+];
+
+const GROCERY = [
+  {c:"🥩 Proteins",i:"Chicken 1.5kg · Salmon 400g · Ground beef 500g · Turkey 400g · Cod 400g · Shrimp 400g · Eggs ×24 · Tuna ×2 · Greek yogurt 1kg · Cottage cheese 400g"},
+  {c:"🍚 Carbs",i:"Rice 1kg · Oats 500g · WW bread · WW pasta 500g · Sweet potatoes 1kg · Baby potatoes 500g · Quinoa 250g · Tortillas · Lentils 500g · Bananas ×8"},
+  {c:"🥦 Veg",i:"Broccoli · Spinach · Peppers ×6 · Zucchini ×3 · Carrots · Onions · Mushrooms · Tomatoes · Asparagus · Green beans · Cucumber ×2 · Salad ×2"},
+  {c:"🍎 Fruit",i:"Blueberries · Mixed berries · Apples ×4 · Lemons ×5 · Avocados ×4"},
+  {c:"🥜 Fats",i:"Peanut butter · Olive oil · Almonds · Walnuts · Feta · Cheddar · Honey · Ghee"},
+  {c:"🧂 Pantry",i:"Soy sauce · Sesame oil · Teriyaki · Passata ×2 · Garlic · Ginger · Cumin · Turmeric · Paprika · Sriracha · Mayo"},
+];
+
+const SUPPS = [
+  {n:"Creatine Monohydrate",d:"5g/day",w:"143 RCTs: ↑lean mass, ↓fat%. No loading. No kidney/hair issues.",p:"Essential"},
+  {n:"Vitamin D3",d:"4,000-5,000 IU/day",w:"41% deficient. Take with fat. Co-supplement K2.",p:"Essential"},
+  {n:"Magnesium Glycinate",d:"300-400mg before bed",w:"↑Sleep via GABA. 36% lower short-sleep risk.",p:"High"},
+  {n:"Omega-3",d:"2-3g EPA+DHA/day",w:"Anti-inflammatory. ↑MPS (Smith 2011).",p:"High"},
+  {n:"Whey Protein",d:"As needed",w:"Convenient to hit 146g target.",p:"As needed"},
+  {n:"Ashwagandha KSM-66",d:"600mg/day",w:"↑Strength, ↓fat%, ↑testosterone 15.3% (Wankhede 2015).",p:"Optional"},
+];
+
+const gc = {warm:"#f59e0b",main:"#3b82f6",posture:"#10b981",cardio:"#8b5cf6",cool:"#6b7280",finisher:"#ef4444",header:"#a78bfa",rest:"#6b7280",review:"#6b7280"};
+
+// ─── APP ────────────────────────────────────────────────────────────────────────
+function App() {
+  const [day, setDay] = useState(() => load("day", 1));
+  const [tab, setTab] = useState("today");
+  const [checks, setChecks] = useState(() => load("checks", {}));
+  const [expM, setExpM] = useState(null);
+  const [expE, setExpE] = useState(null);
+  const [sciCat, setSciCat] = useState("recomp");
+  const [lifeCat, setLifeCat] = useState("sleep");
+
+  useEffect(() => { save("day", day); }, [day]);
+  useEffect(() => { save("checks", checks); }, [checks]);
+
+  const getC = useCallback((d) => checks[d] || {}, [checks]);
+  const togC = (d, i) => setChecks(p => ({...p,[d]:{...(p[d]||{}),[i]:!(p[d]||{})[i]}}));
+
+  const wk = Math.ceil(day/7), dow = (day-1)%7;
+  const dn = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+  const cm = MEALS[dow], cw = getWorkout(day), wn = WK_NOTES[wk-1]||WK_NOTES[3];
+  const cc = CHECKLIST.reduce((a,_,i)=>a+(getC(day)[i]?1:0),0);
+  const cp = Math.round(cc/CHECKLIST.length*100);
+  const ms = MILESTONES[day];
+
+  const tabs = [{id:"today",l:"📋 Today"},{id:"workout",l:"🏋️ Workout"},{id:"meals",l:"🍽️ Meals"},{id:"posture",l:"🧘 Posture"},{id:"science",l:"🔬 Science"},{id:"life",l:"🌙 Life"},{id:"road",l:"🗺️ Road"},{id:"shop",l:"🛒 Shop"},{id:"supps",l:"💊 Supps"}];
+
+  const Pill = ({active,onClick,children}) => <button onClick={onClick} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${active?"bg-emerald-600 text-white":"bg-gray-800 text-gray-400"}`}>{children}</button>;
+  const Card = ({children,className=""}) => <div className={`bg-gray-800/40 rounded-xl border border-gray-700/30 ${className}`}>{children}</div>;
+
+  return (
+    <div className="min-h-screen bg-gray-950 text-gray-100 safe-top safe-bottom">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-emerald-900/80 via-gray-900 to-gray-900 border-b border-emerald-800/40">
+        <div className="max-w-2xl mx-auto px-4 pt-2 pb-3">
+          <div className="flex justify-between items-center mb-2">
+            <div><h1 className="text-base font-bold text-emerald-400 tracking-tight">TRANSFORM 30</h1><p className="text-xs text-gray-500">Day {day}/30 · Week {wk} · {dn[dow]}</p></div>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-400 border border-emerald-700/40">{wk<=2?"Break-In":wk===3?"Progressive":"Test"}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button onClick={()=>setDay(Math.max(1,day-1))} className="p-1 rounded bg-gray-800 text-gray-400 text-sm">◀</button>
+            <div className="flex-1 overflow-x-auto flex gap-1 py-1" style={{scrollbarWidth:"none"}}>
+              {Array.from({length:30},(_,i)=>i+1).map(d=><button key={d} onClick={()=>setDay(d)} className={`flex-shrink-0 w-7 h-7 rounded-lg text-xs font-medium ${d===day?"bg-emerald-600 text-white":"bg-gray-800 text-gray-400"}`}>{d}</button>)}
+            </div>
+            <button onClick={()=>setDay(Math.min(30,day+1))} className="p-1 rounded bg-gray-800 text-gray-400 text-sm">▶</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-gray-900/95 border-b border-gray-800 sticky top-0 z-10">
+        <div className="max-w-2xl mx-auto flex overflow-x-auto" style={{scrollbarWidth:"none"}}>
+          {tabs.map(t=><button key={t.id} onClick={()=>{setTab(t.id);setExpM(null);setExpE(null);}} className={`flex-shrink-0 px-2.5 py-2 text-xs font-medium border-b-2 ${tab===t.id?"border-emerald-500 text-emerald-400":"border-transparent text-gray-500"}`}>{t.l}</button>)}
+        </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto px-4 py-3 pb-20">
+
+        {tab==="today"&&<div className="space-y-3">
+          <Card className="p-3"><div className="text-xs text-emerald-400 font-semibold mb-1">WEEK {wk}</div><div className="text-sm text-gray-300">{wn}</div></Card>
+          <div className="grid grid-cols-3 gap-2">
+            <Card className="p-2.5 text-center"><div className="text-lg font-bold text-emerald-400">{cm.total.match(/P:(\d+)/)?.[1]||"—"}g</div><div className="text-xs text-gray-500">Protein</div></Card>
+            <Card className="p-2.5 text-center"><div className="text-lg font-bold text-blue-400">{cw.ex?.length||0}</div><div className="text-xs text-gray-500">Exercises</div></Card>
+            <Card className="p-2.5 text-center"><div className="text-lg font-bold" style={{color:cp>=80?"#4ade80":cp>=50?"#fbbf24":"#f87171"}}>{cp}%</div><div className="text-xs text-gray-500">Checklist</div></Card>
+          </div>
+          <Card className="p-3 cursor-pointer" onClick={()=>setTab("workout")}><div className="flex justify-between mb-1"><span className="text-xs text-gray-500">TRAINING</span><span className="text-xs text-emerald-400">→</span></div><div className="font-semibold text-white">{cw.t}</div>{cw.badge&&<span className="text-xs text-blue-400">{cw.badge}</span>}</Card>
+          <Card className="p-3 cursor-pointer" onClick={()=>setTab("meals")}><div className="flex justify-between mb-1"><span className="text-xs text-gray-500">NUTRITION</span><span className="text-xs text-emerald-400">→</span></div>{cm.meals.filter(m=>m.m!=="—").map((m,i)=><div key={i} className="flex justify-between text-sm py-0.5"><span className="text-gray-300 truncate mr-2">{m.n}</span><span className="text-gray-500 text-xs flex-shrink-0">{m.m.split("·")[0]}</span></div>)}<div className="mt-1.5 pt-1.5 border-t border-gray-700/40 text-xs text-emerald-400">{cm.total}</div></Card>
+          <Card className="overflow-hidden">
+            <div className="px-3 py-2 bg-gray-800/60 border-b border-gray-700/40 flex justify-between"><span className="text-sm font-semibold">Checklist</span><span className="text-xs px-2 py-0.5 rounded-full" style={{background:cp>=80?"#065f4620":"#7f1d1d20",color:cp>=80?"#4ade80":"#f87171"}}>{cc}/{CHECKLIST.length}</span></div>
+            {CHECKLIST.map((item,i)=><button key={i} onClick={()=>togC(day,i)} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left border-b border-gray-800/40"><div className={`w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border text-xs ${getC(day)[i]?"bg-emerald-600 border-emerald-500 text-white":"border-gray-600 text-transparent"}`}>✓</div><span className={`text-sm ${getC(day)[i]?"text-gray-500 line-through":"text-gray-300"}`}>{item}</span></button>)}
+          </Card>
+          {ms&&<div className="bg-amber-900/20 rounded-xl border border-amber-700/30 p-3"><div className="text-sm font-bold text-amber-400 mb-2">🎯 {ms.t}</div>{ms.items.map((it,i)=><div key={i} className="flex gap-2 text-sm text-gray-300 py-0.5"><span className="text-amber-400">☐</span>{it}</div>)}</div>}
+        </div>}
+
+        {tab==="workout"&&<div className="space-y-2.5">
+          <div className="flex justify-between items-center"><h2 className="text-lg font-bold text-white">{cw.t}</h2>{cw.badge&&<span className="text-xs px-2 py-1 bg-blue-900/40 rounded text-blue-400">{cw.badge}</span>}</div>
+          <Card className="p-2.5 text-xs text-gray-400"><span className="text-emerald-400 font-medium">Phase: </span>{wn}</Card>
+          {(cw.ex||[]).map((ex,i)=><button key={i} onClick={()=>setExpE(expE===i?null:i)} className="w-full text-left bg-gray-800/40 rounded-xl border border-gray-700/30 p-3">
+            <div className="flex items-center justify-between"><div className="flex items-center gap-2 flex-1"><div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{background:gc[ex.g]||"#6b7280"}}/><span className={`text-sm font-medium ${ex.g==="posture"?"text-emerald-400":ex.g==="finisher"?"text-red-400":ex.g==="header"?"text-purple-400 text-xs":"text-gray-200"}`}>{ex.n}</span></div><span className="text-xs text-gray-400 ml-2">{ex.s}</span></div>
+            {expE===i&&ex.c&&<div className="mt-2 pt-2 border-t border-gray-700/30 text-xs text-gray-400">{ex.c}</div>}
+          </button>)}
+          <Card className="p-2.5 text-xs text-gray-400"><span className="text-emerald-400 font-medium">Rest: </span>60-90s hypertrophy, 2-3m compounds. {wk<=2?"RPE 6-7.":"RPE 8-9."}</Card>
+        </div>}
+
+        {tab==="meals"&&<div className="space-y-2.5">
+          <h2 className="text-lg font-bold">{cm.day}</h2>
+          <Card className="p-2.5"><div className="text-xs text-emerald-400 font-semibold">TOTALS</div><div className="text-sm text-gray-200 mt-0.5">{cm.total}</div></Card>
+          {cm.meals.map((ml,i)=><Card key={i} className="overflow-hidden">
+            <button onClick={()=>ml.m!=="—"&&setExpM(expM===i?null:i)} className="w-full text-left p-3">
+              <div className="flex justify-between"><div><div className="text-xs text-gray-500">{ml.t}</div><div className="text-sm font-medium text-gray-200">{ml.n}</div></div>{ml.m!=="—"&&<span className="text-xs text-emerald-400">{expM===i?"▲":"▼"}</span>}</div>
+              {ml.m!=="—"&&<div className="text-xs text-gray-400 mt-0.5">{ml.m}</div>}
+            </button>
+            {expM===i&&ml.m!=="—"&&<div className="px-3 pb-3 border-t border-gray-700/30 pt-2 space-y-1.5"><div className="text-xs text-gray-500 font-medium">INGREDIENTS</div><div className="text-sm text-gray-300">{ml.i}</div>{ml.r&&<><div className="text-xs text-gray-500 font-medium mt-1">RECIPE</div><div className="text-sm text-gray-300">{ml.r}</div></>}</div>}
+          </Card>)}
+        </div>}
+
+        {tab==="posture"&&<div className="space-y-2.5">
+          <h2 className="text-lg font-bold">12-Min Posture Reset</h2>
+          <div className="bg-purple-900/20 border border-purple-800/30 rounded-xl p-2.5 text-xs text-purple-300">Do EVERY day. APT: 4-8 wks (Piri 2024). Shoulders: 3-4 wks (Seidi 2020).</div>
+          {POSTURE.map((p,i)=><Card key={i} className="p-3"><div className="flex justify-between"><span className="text-sm font-medium text-gray-200">{p.e}</span><span className="text-xs text-purple-400 ml-2">{p.d}</span></div><div className="text-xs text-gray-400 mt-1">{p.c}</div></Card>)}
+          <Card className="p-3 text-xs text-gray-300 space-y-1.5">
+            <p><span className="text-emerald-400 font-medium">Sitting: </span>90-90-90. Monitor at eye level. Move every 30-45m.</p>
+            <p><span className="text-emerald-400 font-medium">Standing: </span>Ears→shoulders→hips→ankles. 10% glute squeeze.</p>
+            <p><span className="text-amber-400 font-medium">🚪 Doorway Trigger: </span>Every doorway = posture reset.</p>
+          </Card>
+        </div>}
+
+        {tab==="science"&&<div className="space-y-2.5">
+          <h2 className="text-lg font-bold">Research</h2>
+          <div className="flex flex-wrap gap-1.5">{[["recomp","Recomp"],["posture","Posture"],["training","Training"],["cardio","Cardio"],["alcohol","Alcohol"],["sleep","Sleep"],["habits","Habits"]].map(([k,l])=><Pill key={k} active={sciCat===k} onClick={()=>setSciCat(k)}>{l}</Pill>)}</div>
+          {SCIENCE[sciCat].map((s,i)=><Card key={i} className="p-3"><div className="text-xs text-emerald-400 font-semibold">{s.t}</div><div className="text-sm text-gray-200 mt-0.5">{s.f}</div><div className="text-xs text-gray-500 mt-1 italic">📄 {s.s}</div></Card>)}
+          <Card className="p-3"><h3 className="text-sm font-bold mb-1.5">Priority Hierarchy</h3>{[{n:1,t:"Sleep 7+",c:"#ef4444"},{n:2,t:"Alcohol ≤2/wk",c:"#ef4444"},{n:3,t:"Protein 146g",c:"#f97316"},{n:4,t:"Resistance training",c:"#eab308"},{n:5,t:"Posture daily",c:"#22c55e"},{n:6,t:"Zone 2 cardio",c:"#3b82f6"},{n:7,t:"Creatine+D3+Mg",c:"#8b5cf6"}].map(h=><div key={h.n} className="flex gap-1.5 py-0.5"><span className="text-sm font-bold w-4" style={{color:h.c}}>{h.n}</span><span className="text-sm text-gray-300">{h.t}</span></div>)}</Card>
+        </div>}
+
+        {tab==="life"&&<div className="space-y-2.5">
+          <h2 className="text-lg font-bold">Lifestyle</h2>
+          <div className="flex flex-wrap gap-1.5">{[["sleep","🌙 Sleep"],["alc","🍺 Alcohol"],["desk","🖥️ Desk"],["track","📊 Track"]].map(([k,l])=><Pill key={k} active={lifeCat===k} onClick={()=>setLifeCat(k)}>{l}</Pill>)}</div>
+          {lifeCat==="sleep"&&<>{SLEEP_PROTOCOL.map((s,i)=><Card key={i} className="p-3"><div className="text-sm text-gray-200">{s.s}</div><div className="text-xs text-gray-400 mt-0.5">{s.w}</div></Card>)}</>}
+          {lifeCat==="alc"&&<>{ALCOHOL_PLAN.map((a,i)=><Card key={i} className="p-3"><div className="text-xs text-amber-400 font-semibold">{a.p}</div><div className="text-sm text-gray-200 mt-0.5">{a.t}</div><div className="text-xs text-gray-400 mt-0.5">{a.r}</div></Card>)}</>}
+          {lifeCat==="desk"&&<>{DESK.map((d,i)=><Card key={i} className="p-3"><div className="text-xs text-purple-400 font-semibold">{d.a}</div><div className="text-sm text-gray-300 mt-0.5">{d.t}</div></Card>)}</>}
+          {lifeCat==="track"&&<>{TRACKING.map((t,i)=><Card key={i} className="p-3"><div className="text-sm text-gray-200 font-medium">{t.m}</div><div className="text-xs text-gray-400 mt-0.5">{t.d}</div></Card>)}</>}
+        </div>}
+
+        {tab==="road"&&<div className="space-y-2.5">
+          <h2 className="text-lg font-bold">Roadmap</h2>
+          <Card className="p-3"><h3 className="text-sm font-bold text-emerald-400 mb-1.5">📐 Body Composition</h3>{BODY_COMP.map((b,i)=><div key={i} className="py-1.5 border-b border-gray-700/30 last:border-0"><div className="text-xs text-amber-400 font-semibold">{b.w}</div><div className="text-sm text-gray-300 mt-0.5">{b.e}</div></div>)}</Card>
+          <Card className="p-3"><h3 className="text-sm font-bold text-blue-400 mb-1.5">🏃 Modified C25K (16 wks)</h3>{C25K.map((c,i)=><div key={i} className="py-1.5 border-b border-gray-700/30 last:border-0"><div className="text-xs text-blue-400">{c.w}</div><div className="text-sm text-gray-200">{c.r}</div><div className="text-xs text-gray-400">{c.n}</div></div>)}</Card>
+          <Card className="p-3"><h3 className="text-sm font-bold text-purple-400 mb-1.5">🎯 After Day 30</h3>
+            <div className="py-1 text-sm"><span className="text-green-400">7+ milestones:</span> <span className="text-gray-300">Continue, +2.5-5 kg/1-2 wks. Target 5K by Wk10-12.</span></div>
+            <div className="py-1 text-sm"><span className="text-yellow-400">4-6:</span> <span className="text-gray-300">Identify 2 weakest areas. Repeat Wk3-4.</span></div>
+            <div className="py-1 text-sm"><span className="text-red-400">&lt;4:</span> <span className="text-gray-300">Repeat full 4-week program. Focus on habits.</span></div>
+          </Card>
+        </div>}
+
+        {tab==="shop"&&<div className="space-y-2.5">
+          <h2 className="text-lg font-bold">Weekly Grocery</h2>
+          {GROCERY.map((g,i)=><Card key={i} className="p-3"><div className="text-sm font-semibold mb-0.5">{g.c}</div><div className="text-xs text-gray-300">{g.i}</div></Card>)}
+          <Card className="p-3"><h3 className="text-sm font-bold text-emerald-400 mb-1.5">🍳 Sunday Prep (45m)</h3><div className="text-xs text-gray-300 space-y-1"><p><b className="text-white">1.</b> Bake 1.5kg chicken (garlic + soy-ginger). Slice → 5 containers.</p><p><b className="text-white">2.</b> Cook 750g rice → 5-6 portions.</p><p><b className="text-white">3.</b> Chop all veg into bags.</p><p><b className="text-white">4.</b> 3 overnight oat jars.</p><p><b className="text-white">5.</b> Hard-boil 6 eggs.</p></div></Card>
+        </div>}
+
+        {tab==="supps"&&<div className="space-y-2.5">
+          <h2 className="text-lg font-bold">Supplements</h2>
+          {SUPPS.map((s,i)=><Card key={i} className="p-3"><div className="flex justify-between"><span className="text-sm font-semibold">{s.n}</span><span className={`text-xs px-2 py-0.5 rounded-full ${s.p==="Essential"?"bg-emerald-900/40 text-emerald-400":s.p==="High"?"bg-blue-900/40 text-blue-400":"bg-gray-700/40 text-gray-400"}`}>{s.p}</span></div><div className="text-xs text-emerald-400 mt-0.5">{s.d}</div><div className="text-xs text-gray-400 mt-0.5">{s.w}</div></Card>)}
+          <div className="bg-red-900/15 border border-red-800/30 rounded-xl p-2.5"><div className="text-xs text-red-400 font-semibold mb-0.5">❌ SKIP</div><div className="text-xs text-gray-400">BCAAs · Test boosters · Fat burners · Mass gainers · Glutamine · Nightly melatonin</div></div>
+        </div>}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+<script>
+// Register service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
