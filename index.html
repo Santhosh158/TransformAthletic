@@ -421,8 +421,8 @@ function App() {
     <button onClick={onClick} style={{padding:"6px 12px",borderRadius:"8px",fontSize:"12px",fontWeight:600,border:"none",cursor:"pointer",background:active?"#059669":"#1f2937",color:active?"#fff":"#9ca3af"}}>{children}</button>
   );
 
-  const Card = ({children,style={}}) => (
-    <div style={{background:"rgba(31,41,55,0.4)",borderRadius:"12px",border:"1px solid rgba(55,65,81,0.3)",...style}}>{children}</div>
+  const Card = ({children,style={},...rest}) => (
+    <div style={{background:"rgba(31,41,55,0.4)",borderRadius:"12px",border:"1px solid rgba(55,65,81,0.3)",transition:"background 0.15s",...style}} {...rest}>{children}</div>
   );
 
   const sty = {
@@ -701,7 +701,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 
 <script>
-// Register service worker for offline support
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
